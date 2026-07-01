@@ -681,6 +681,22 @@
                 this.particles = [];
                 this.bgWaterParticles = [];
 
+                // Load Assets
+                this.poopImg = new Image();
+                this.poopImg.src = 'Assets/poop.webp';
+                this.poopImgLoaded = false;
+                this.poopImg.onload = () => { this.poopImgLoaded = true; };
+
+                this.tpImg = new Image();
+                this.tpImg.src = 'Assets/tp.png';
+                this.tpImgLoaded = false;
+                this.tpImg.onload = () => { this.tpImgLoaded = true; };
+
+                this.bubbleImg = new Image();
+                this.bubbleImg.src = 'Assets/bubbles.png';
+                this.bubbleImgLoaded = false;
+                this.bubbleImg.onload = () => { this.bubbleImgLoaded = true; };
+
                 // Spawn timers
                 this.obstacleTimer = 0;
                 this.collectibleTimer = 0;
@@ -1035,21 +1051,13 @@
 
             spawnObstacle() {
                 const lane = Math.floor(Math.random() * this.lanesCount);
-                const obstacleTypes = [
-                    { emoji: '💩', label: 'monstruo de caca', failReason: '¡Te chocaste con un monstruo de caca!' },
-                    { emoji: '🪠', label: 'desatascador de tuberías', failReason: '¡Te tropezaste con un desatascador!' },
-                    { emoji: '🧼', label: 'jabón resbaladizo', failReason: '¡Te resbalaste en una pastilla de jabón!' },
-                    { emoji: '🧽', label: 'esponja sucia', failReason: '¡Te aplastó una esponja gigante!' }
-                ];
-                
-                const type = obstacleTypes[Math.floor(Math.random() * obstacleTypes.length)];
-                
                 this.obstacles.push({
                     x: this.getLaneX(lane),
                     y: -50,
                     radius: 36, // Much larger radius for visual feedback and collision
-                    emoji: type.emoji,
-                    failReason: type.failReason
+                    type: 'poop',
+                    emoji: '💩',
+                    failReason: '¡Te chocaste con un monstruo de caca!'
                 });
             }
 
@@ -1148,10 +1156,14 @@
                     // Glow effect
                     ctx.shadowBlur = 15;
                     ctx.shadowColor = 'rgba(56, 189, 248, 0.6)';
-                    ctx.font = `${col.radius * 2.5}px var(--font-main)`; // Enlarged font factor
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'middle';
-                    ctx.fillText(col.emoji, col.x, col.y);
+                    if (this.bubbleImgLoaded) {
+                        ctx.drawImage(this.bubbleImg, col.x - col.radius, col.y - col.radius, col.radius * 2, col.radius * 2);
+                    } else {
+                        ctx.font = `${col.radius * 2.5}px var(--font-main)`; // Enlarged font factor
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        ctx.fillText(col.emoji, col.x, col.y);
+                    }
                     ctx.restore();
                 });
 
@@ -1160,10 +1172,14 @@
                     ctx.save();
                     ctx.shadowBlur = 10;
                     ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
-                    ctx.font = `${obs.radius * 2.5}px var(--font-main)`; // Enlarged font factor
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'middle';
-                    ctx.fillText(obs.emoji, obs.x, obs.y);
+                    if (obs.type === 'poop' && this.poopImgLoaded) {
+                        ctx.drawImage(this.poopImg, obs.x - obs.radius, obs.y - obs.radius, obs.radius * 2, obs.radius * 2);
+                    } else {
+                        ctx.font = `${obs.radius * 2.5}px var(--font-main)`; // Enlarged font factor
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        ctx.fillText(obs.emoji, obs.x, obs.y);
+                    }
                     ctx.restore();
                 });
 
@@ -1188,57 +1204,61 @@
                     ctx.shadowColor = 'rgba(255, 255, 255, 0.8)';
                 }
 
-                // Unrolling toilet paper tail (drawn relative to rotated player space)
-                ctx.fillStyle = '#ffffff';
-                ctx.beginPath();
-                ctx.moveTo(-15, 0);
-                ctx.bezierCurveTo(
-                    -25, 20,
-                    -20, 35,
-                    -15, 45
-                );
-                ctx.lineTo(-5, 45);
-                ctx.bezierCurveTo(
-                    -8, 35,
-                    -15, 20,
-                    -5, 0
-                );
-                ctx.closePath();
-                ctx.fill();
+                if (this.tpImgLoaded) {
+                    ctx.drawImage(this.tpImg, -this.playerRadius, -this.playerRadius, this.playerRadius * 2, this.playerRadius * 2);
+                } else {
+                    // Unrolling toilet paper tail (drawn relative to rotated player space)
+                    ctx.fillStyle = '#ffffff';
+                    ctx.beginPath();
+                    ctx.moveTo(-15, 0);
+                    ctx.bezierCurveTo(
+                        -25, 20,
+                        -20, 35,
+                        -15, 45
+                    );
+                    ctx.lineTo(-5, 45);
+                    ctx.bezierCurveTo(
+                        -8, 35,
+                        -15, 20,
+                        -5, 0
+                    );
+                    ctx.closePath();
+                    ctx.fill();
 
-                // Main cylindrical roll side-view (a white circle)
-                ctx.fillStyle = '#f8fafc';
-                ctx.strokeStyle = '#e2e8f0';
-                ctx.lineWidth = 2;
-                ctx.beginPath();
-                ctx.arc(0, 0, this.playerRadius, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.stroke();
+                    // Main cylindrical roll side-view (a white circle)
+                    ctx.fillStyle = '#f8fafc';
+                    ctx.strokeStyle = '#e2e8f0';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.arc(0, 0, this.playerRadius, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.stroke();
 
-                // Paper concentric circles
-                ctx.strokeStyle = 'rgba(148, 163, 184, 0.3)';
-                ctx.lineWidth = 1.5;
-                ctx.beginPath();
-                ctx.arc(0, 0, this.playerRadius * 0.7, 0, Math.PI * 2);
-                ctx.stroke();
-                ctx.beginPath();
-                ctx.arc(0, 0, this.playerRadius * 0.5, 0, Math.PI * 2);
-                ctx.stroke();
+                    // Paper concentric circles
+                    ctx.strokeStyle = 'rgba(148, 163, 184, 0.3)';
+                    ctx.lineWidth = 1.5;
+                    ctx.beginPath();
+                    ctx.arc(0, 0, this.playerRadius * 0.7, 0, Math.PI * 2);
+                    ctx.stroke();
+                    ctx.beginPath();
+                    ctx.arc(0, 0, this.playerRadius * 0.5, 0, Math.PI * 2);
+                    ctx.stroke();
 
-                // Inside cardboard tube (brown circle center)
-                ctx.fillStyle = '#b45309'; // Warm brown cardboard color
-                ctx.strokeStyle = '#78350f';
-                ctx.lineWidth = 2;
-                ctx.beginPath();
-                ctx.arc(0, 0, this.playerRadius * 0.3, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.stroke();
+                    // Inside cardboard tube (brown circle center)
+                    ctx.fillStyle = '#b45309'; // Warm brown cardboard color
+                    ctx.strokeStyle = '#78350f';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.arc(0, 0, this.playerRadius * 0.3, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.stroke();
 
-                // Dark hole inside the tube
-                ctx.fillStyle = '#070a13';
-                ctx.beginPath();
-                ctx.arc(0, 0, this.playerRadius * 0.15, 0, Math.PI * 2);
-                ctx.fill();
+                    // Dark hole inside the tube
+                    ctx.fillStyle = '#070a13';
+                    ctx.beginPath();
+                    ctx.arc(0, 0, this.playerRadius * 0.15, 0, Math.PI * 2);
+                    ctx.fill();
+                }
 
                 ctx.restore();
             }
