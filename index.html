@@ -1,0 +1,1253 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>🚽 Flush Rush - ¡Aventura Infinita en el Baño!</title>
+    <!-- Google Fonts for playful and clean restroom theme -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        /* Flush Rush - Styling */
+
+        :root {
+            --bg-dark: #070a13;
+            --bg-card: rgba(15, 22, 42, 0.65);
+            --border-glass: rgba(255, 255, 255, 0.08);
+            --border-glass-glow: rgba(56, 189, 248, 0.3);
+            
+            --primary: #00f0ff;
+            --primary-glow: rgba(0, 240, 255, 0.4);
+            --secondary: #e2e8f0;
+            --danger: #ff477e;
+            --warning: #fbbf24;
+            --success: #10b981;
+            
+            --font-main: 'Fredoka', system-ui, -apple-system, sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none; /* Disables double-tap zoom & panning on mobile */
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: #f8fafc;
+            font-family: var(--font-main);
+            overflow: hidden;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* Container to keep aspect ratio centered on desktops */
+        #game-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            max-width: 480px; /* Perfect portrait size for desktops */
+            max-height: 850px;
+            background: #0d1224;
+            overflow: hidden;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+            border-radius: 24px;
+            border: 2px solid rgba(255, 255, 255, 0.05);
+            display: flex;
+            flex-direction: column;
+        }
+
+        @media (max-width: 480px) {
+            #game-container {
+                max-width: 100%;
+                max-height: 100%;
+                border-radius: 0;
+                border: none;
+            }
+        }
+
+        /* Canvas stretching */
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(180deg, #090e1a 0%, #151d33 100%);
+        }
+
+        /* HUD elements style */
+        #hud {
+            position: absolute;
+            top: 20px;
+            left: 0;
+            right: 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 20px;
+            z-index: 10;
+            pointer-events: none; /* Let clicks pass through to game when playing */
+            transition: opacity 0.3s ease;
+        }
+
+        .hidden {
+            opacity: 0 !important;
+            pointer-events: none !important;
+            visibility: hidden;
+        }
+
+        .hud-item {
+            background: var(--bg-card);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--border-glass);
+            padding: 8px 16px;
+            border-radius: 16px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.2);
+            min-width: 90px;
+        }
+
+        .hud-label {
+            font-size: 0.65rem;
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.6);
+            letter-spacing: 0.07em;
+        }
+
+        .hud-value {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: var(--primary);
+            text-shadow: 0 0 10px var(--primary-glow);
+        }
+
+        .hud-center {
+            display: flex;
+            gap: 12px;
+            pointer-events: auto; /* Re-enable pointer events for HUD buttons */
+        }
+
+        .hud-btn {
+            background: var(--bg-card);
+            border: 1px solid var(--border-glass);
+            border-radius: 50%;
+            width: 44px;
+            height: 44px;
+            font-size: 1.2rem;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            transition: transform 0.1s ease, background-color 0.2s;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .hud-btn:active {
+            transform: scale(0.9);
+            background-color: rgba(255, 255, 255, 0.15);
+        }
+
+        /* Screens Styles (Start, Game Over, Pause) */
+        .screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(8, 12, 24, 0.85);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            z-index: 20;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 30px;
+            text-align: center;
+            transition: opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.4s;
+            opacity: 1;
+        }
+
+        /* Logo and Header styling */
+        .logo-container {
+            margin-bottom: 24px;
+        }
+
+        .toilet-emoji {
+            font-size: 4.5rem;
+            filter: drop-shadow(0 0 15px var(--primary-glow));
+            animation: toiletBounce 3s ease-in-out infinite;
+        }
+
+        h1 {
+            font-size: 2.8rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #ffffff 30%, #a5f3fc 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -0.02em;
+            margin-top: 10px;
+            text-shadow: 0 4px 20px rgba(56, 189, 248, 0.15);
+        }
+
+        .subtitle {
+            color: #94a3b8;
+            font-size: 1.05rem;
+            margin-top: 6px;
+        }
+
+        /* Stats view on Main Screen */
+        .stats-box {
+            background: var(--bg-card);
+            border: 1px solid var(--border-glass);
+            border-radius: 20px;
+            padding: 16px 24px;
+            width: 100%;
+            max-width: 320px;
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 30px;
+            box-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.05);
+        }
+
+        .stat {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .stat-label {
+            font-size: 0.8rem;
+            color: #94a3b8;
+        }
+
+        .stat-val {
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: #ffffff;
+        }
+
+        /* Custom Buttons styling */
+        .menu-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            width: 100%;
+            max-width: 320px;
+            margin-bottom: 30px;
+        }
+
+        .btn {
+            font-family: var(--font-main);
+            font-weight: 600;
+            font-size: 1.05rem;
+            padding: 16px 24px;
+            border-radius: 18px;
+            border: none;
+            cursor: pointer;
+            transition: transform 0.1s ease, filter 0.2s, box-shadow 0.2s;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .btn:active {
+            transform: scale(0.97);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #00f0ff 0%, #0284c7 100%);
+            color: #070a13;
+            box-shadow: 0 0 20px rgba(0, 240, 255, 0.25);
+        }
+
+        .btn-primary:hover {
+            filter: brightness(1.1);
+        }
+
+        .btn-secondary {
+            background: var(--bg-card);
+            border: 1px solid var(--border-glass);
+            color: #ffffff;
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, var(--danger) 0%, #991b1b 100%);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            filter: brightness(1.1);
+        }
+
+        /* Pulsing effect for main CTA buttons */
+        .btn-pulse {
+            animation: ctaPulse 2s infinite;
+        }
+
+        /* Instructions */
+        .instructions {
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 16px;
+            padding: 12px 18px;
+            font-size: 0.85rem;
+            color: #94a3b8;
+            max-width: 320px;
+        }
+
+        .instructions h3 {
+            color: #e2e8f0;
+            font-size: 0.95rem;
+            margin-bottom: 6px;
+        }
+
+        .desktop-only { display: block; }
+        .mobile-only { display: none; }
+
+        @media (pointer: coarse) {
+            .desktop-only { display: none; }
+            .mobile-only { display: block; }
+        }
+
+        /* Game Over screen details */
+        .game-over-title {
+            font-size: 2.2rem;
+            color: var(--danger);
+            text-shadow: 0 0 15px rgba(255, 71, 126, 0.3);
+            margin-bottom: 10px;
+        }
+
+        #gameOverReason {
+            color: #94a3b8;
+            margin-bottom: 24px;
+        }
+
+        .final-score-box {
+            background: var(--bg-card);
+            border: 1px solid rgba(255, 71, 126, 0.15);
+            border-radius: 24px;
+            padding: 20px;
+            width: 100%;
+            max-width: 320px;
+            margin-bottom: 30px;
+            position: relative;
+            box-shadow: 0 8px 32px rgba(255, 71, 126, 0.05);
+        }
+
+        .final-stat {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 8px 0;
+            font-size: 1.05rem;
+        }
+
+        .final-val {
+            font-weight: 700;
+            font-size: 1.4rem;
+            color: #ffffff;
+        }
+
+        .new-record {
+            background: linear-gradient(90deg, #fbbf24, #f59e0b);
+            color: #070a13;
+            font-weight: 700;
+            font-size: 0.8rem;
+            padding: 4px 12px;
+            border-radius: 12px;
+            display: inline-block;
+            margin: 6px 0;
+            animation: bounce 0.8s infinite alternate;
+        }
+
+        /* Animations */
+        @keyframes toiletBounce {
+            0%, 100% { transform: translateY(0) rotate(0deg); }
+            50% { transform: translateY(-10px) rotate(3deg); }
+        }
+
+        @keyframes ctaPulse {
+            0% { box-shadow: 0 0 0 0 rgba(0, 240, 255, 0.4); }
+            70% { box-shadow: 0 0 0 12px rgba(0, 240, 255, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(0, 240, 255, 0); }
+        }
+
+        @keyframes bounce {
+            0% { transform: translateY(0); }
+            100% { transform: translateY(-4px); }
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <!-- Canvas where the game action happens -->
+        <canvas id="gameCanvas"></canvas>
+
+        <!-- HUD (Heads-Up Display) -->
+        <div id="hud" class="hidden">
+            <div class="hud-item score-container">
+                <span class="hud-label">PUNTOS</span>
+                <span id="scoreVal" class="hud-value">0</span>
+            </div>
+            <div class="hud-center">
+                <button id="pauseBtn" class="hud-btn" aria-label="Pausar juego">⏸️</button>
+                <button id="muteBtn" class="hud-btn" aria-label="Silenciar sonido">🔊</button>
+            </div>
+            <div class="hud-item bubbles-container">
+                <span class="hud-label">BURBUJAS</span>
+                <span id="bubblesVal" class="hud-value">0</span>
+            </div>
+        </div>
+
+        <!-- Screens -->
+        <!-- 1. Start Screen -->
+        <div id="startScreen" class="screen">
+            <div class="logo-container">
+                <div class="toilet-emoji">🚽</div>
+                <h1>FLUSH RUSH</h1>
+                <p class="subtitle">¡Esquiva la caca, salva el papel!</p>
+            </div>
+
+            <div class="stats-box">
+                <div class="stat">
+                    <span class="stat-label">🏆 Récord:</span>
+                    <span id="highScoreVal" class="stat-val">0</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">🫧 Burbujas:</span>
+                    <span id="totalBubblesVal" class="stat-val">0</span>
+                </div>
+            </div>
+
+            <div class="menu-buttons">
+                <button id="playBtn" class="btn btn-primary btn-pulse">🟢 EMPEZAR A JUGAR</button>
+                <button id="flushBtn" class="btn btn-secondary">🧻 TIRAR DE LA CADENA</button>
+            </div>
+
+            <div class="instructions">
+                <h3>¿Cómo jugar?</h3>
+                <p class="desktop-only">⬅️ ➡️ Usa las flechas o A / D para cambiar de tubería.<br>⚡ ¡Evita los obstáculos y recoge las burbujas!</p>
+                <p class="mobile-only">📱 Toca el lado izquierdo o derecho de la pantalla para cambiar de tubería.<br>⚡ ¡Esquiva la caca y recoge burbujas!</p>
+            </div>
+        </div>
+
+        <!-- 2. Pause Screen -->
+        <div id="pauseScreen" class="screen hidden">
+            <h2>JUEGO PAUSADO</h2>
+            <p>Tomando un respiro...</p>
+            <div class="menu-buttons">
+                <button id="resumeBtn" class="btn btn-primary">▶️ CONTINUAR</button>
+                <button id="restartPauseBtn" class="btn btn-secondary">🔄 REINICIAR</button>
+                <button id="homePauseBtn" class="btn btn-danger">🏠 MENÚ PRINCIPAL</button>
+            </div>
+        </div>
+
+        <!-- 3. Game Over Screen -->
+        <div id="gameOverScreen" class="screen hidden">
+            <h2 class="game-over-title">💩 ¡TE LLENASTE DE M...! 💩</h2>
+            <p id="gameOverReason">¡Te chocaste con un monstruo de caca!</p>
+
+            <div class="final-score-box">
+                <div class="final-stat">
+                    <span>Puntuación:</span>
+                    <span id="finalScoreVal" class="final-val">0</span>
+                </div>
+                <div id="newRecordBadge" class="new-record hidden">✨ NUEVO RÉCORD ✨</div>
+                <div class="final-stat">
+                    <span>Burbujas recogidas:</span>
+                    <span id="finalBubblesVal" class="final-val">0</span>
+                </div>
+            </div>
+
+            <div class="menu-buttons">
+                <button id="retryBtn" class="btn btn-primary btn-pulse">🔄 VOLVER A INTENTAR</button>
+                <button id="homeBtn" class="btn btn-secondary">🏠 MENÚ PRINCIPAL</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Flush Rush - Game Logic & Sound Engine
+
+        // --- Web Audio API Sound Synthesizer ---
+        class SoundEngine {
+            constructor() {
+                this.ctx = null;
+                this.muted = false;
+            }
+
+            init() {
+                if (!this.ctx) {
+                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                if (this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                }
+            }
+
+            toggleMute() {
+                this.muted = !this.muted;
+                return this.muted;
+            }
+
+            playJump() {
+                if (this.muted) return;
+                this.init();
+                const ctx = this.ctx;
+                const now = ctx.currentTime;
+
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(150, now);
+                // Pitch bend upwards
+                osc.frequency.exponentialRampToValueAtTime(600, now + 0.15);
+
+                gain.gain.setValueAtTime(0.15, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+
+                osc.start(now);
+                osc.stop(now + 0.15);
+            }
+
+            playCollect() {
+                if (this.muted) return;
+                this.init();
+                const ctx = this.ctx;
+                const now = ctx.currentTime;
+
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+
+                osc.type = 'sine';
+                // Double tone beep
+                osc.frequency.setValueAtTime(523.25, now); // C5
+                osc.frequency.setValueAtTime(880, now + 0.08); // A5
+
+                gain.gain.setValueAtTime(0.1, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
+
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+
+                osc.start(now);
+                osc.stop(now + 0.25);
+            }
+
+            playCrash() {
+                if (this.muted) return;
+                this.init();
+                const ctx = this.ctx;
+                const now = ctx.currentTime;
+
+                // Low thud
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(100, now);
+                osc.frequency.exponentialRampToValueAtTime(10, now + 0.4);
+                gain.gain.setValueAtTime(0.3, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+
+                // Noise buffer for splash
+                const bufferSize = ctx.sampleRate * 0.4;
+                const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) {
+                    data[i] = Math.random() * 2 - 1;
+                }
+                const noise = ctx.createBufferSource();
+                noise.buffer = buffer;
+
+                const filter = ctx.createBiquadFilter();
+                filter.type = 'lowpass';
+                filter.frequency.setValueAtTime(400, now);
+                filter.frequency.exponentialRampToValueAtTime(50, now + 0.4);
+
+                const noiseGain = ctx.createGain();
+                noiseGain.gain.setValueAtTime(0.2, now);
+                noiseGain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+
+                noise.connect(filter);
+                filter.connect(noiseGain);
+                noiseGain.connect(ctx.destination);
+
+                osc.start(now);
+                osc.stop(now + 0.4);
+                noise.start(now);
+                noise.stop(now + 0.4);
+            }
+
+            playFlush() {
+                if (this.muted) return;
+                this.init();
+                const ctx = this.ctx;
+                const now = ctx.currentTime;
+                const duration = 1.8;
+
+                // White noise node
+                const bufferSize = ctx.sampleRate * duration;
+                const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) {
+                    data[i] = Math.random() * 2 - 1;
+                }
+                const noise = ctx.createBufferSource();
+                noise.buffer = buffer;
+
+                // Dynamic bandpass filter to sound like swirling water
+                const filter = ctx.createBiquadFilter();
+                filter.type = 'bandpass';
+                filter.Q.setValueAtTime(3.0, now);
+                filter.frequency.setValueAtTime(1000, now);
+                
+                // Swirling filter modulation
+                for (let t = 0; t < duration; t += 0.1) {
+                    const freq = 600 + Math.sin(t * 12) * 300 - (t * 200);
+                    filter.frequency.linearRampToValueAtTime(Math.max(100, freq), now + t);
+                }
+
+                const gain = ctx.createGain();
+                gain.gain.setValueAtTime(0.15, now);
+                gain.gain.linearRampToValueAtTime(0.25, now + 0.4);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+                noise.connect(filter);
+                filter.connect(gain);
+                gain.connect(ctx.destination);
+
+                noise.start(now);
+                noise.stop(now + duration);
+            }
+        }
+
+        const sounds = new SoundEngine();
+
+        // --- Game Engine Class ---
+        class Game {
+            constructor() {
+                this.canvas = document.getElementById('gameCanvas');
+                this.ctx = this.canvas.getContext('2d');
+
+                // State variables
+                this.state = 'START'; // START, PLAYING, PAUSED, GAMEOVER
+                this.score = 0;
+                this.highScore = parseInt(localStorage.getItem('flush_rush_highscore')) || 0;
+                this.totalBubbles = parseInt(localStorage.getItem('flush_rush_bubbles')) || 0;
+                this.bubblesCollectedThisRun = 0;
+                
+                // Game configuration
+                this.baseSpeed = 4.5;
+                this.speed = this.baseSpeed;
+                this.maxSpeed = 12;
+                this.gameTime = 0;
+
+                // Lanes (3 pipes)
+                this.lanesCount = 3;
+                this.currentLane = 1; // 0: Left, 1: Center, 2: Right
+                this.targetLaneX = 0;
+                this.playerX = 0;
+                this.playerY = 0;
+                this.playerRadius = 26;
+                this.playerRotation = 0;
+
+                // Entities
+                this.obstacles = [];
+                this.collectibles = [];
+                this.particles = [];
+                this.bgWaterParticles = [];
+
+                // Spawn timers
+                this.obstacleTimer = 0;
+                this.collectibleTimer = 0;
+                this.minSpawnDelay = 1100; // ms
+
+                // UI references
+                this.screens = {
+                    start: document.getElementById('startScreen'),
+                    pause: document.getElementById('pauseScreen'),
+                    gameOver: document.getElementById('gameOverScreen'),
+                    hud: document.getElementById('hud')
+                };
+
+                // Resize & Init
+                this.resize();
+                window.addEventListener('resize', () => this.resize());
+                this.setupInput();
+                this.setupButtons();
+                this.resetGameData();
+                
+                // Initial Background Particles
+                for (let i = 0; i < 25; i++) {
+                    this.bgWaterParticles.push({
+                        x: Math.random() * this.canvas.width,
+                        y: Math.random() * this.canvas.height,
+                        speed: (0.5 + Math.random() * 0.5),
+                        size: 1 + Math.random() * 3
+                    });
+                }
+
+                // Start loop
+                this.lastTime = performance.now();
+                requestAnimationFrame((t) => this.loop(t));
+            }
+
+            resize() {
+                // Match bounds of container
+                const rect = this.canvas.getBoundingClientRect();
+                this.canvas.width = rect.width * window.devicePixelRatio;
+                this.canvas.height = rect.height * window.devicePixelRatio;
+                this.ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+                
+                // Update physics variables scaling
+                this.updateLaneXCoordinates();
+                this.playerY = this.getViewportHeight() * 0.78;
+                if (this.state === 'START' || this.state === 'GAMEOVER') {
+                    this.playerX = this.getLaneX(1);
+                } else {
+                    this.playerX = this.getLaneX(this.currentLane);
+                }
+            }
+
+            getViewportWidth() {
+                return this.canvas.width / window.devicePixelRatio;
+            }
+
+            getViewportHeight() {
+                return this.canvas.height / window.devicePixelRatio;
+            }
+
+            updateLaneXCoordinates() {
+                const w = this.getViewportWidth();
+                this.laneSpacing = w / this.lanesCount;
+            }
+
+            getLaneX(laneIndex) {
+                return (laneIndex * this.laneSpacing) + (this.laneSpacing / 2);
+            }
+
+            resetGameData() {
+                document.getElementById('highScoreVal').innerText = this.highScore;
+                document.getElementById('totalBubblesVal').innerText = this.totalBubbles;
+            }
+
+            setupInput() {
+                // Keyboard controls
+                window.addEventListener('keydown', (e) => {
+                    if (this.state !== 'PLAYING') return;
+                    if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') {
+                        this.changeLane(-1);
+                    } else if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') {
+                        this.changeLane(1);
+                    } else if (e.key === 'Escape' || e.key === 'p' || e.key === 'P') {
+                        this.pauseGame();
+                    }
+                });
+
+                // Tap/Click controls (Split screen horizontally: left half to move left, right half to move right)
+                this.canvas.addEventListener('pointerdown', (e) => {
+                    if (this.state !== 'PLAYING') return;
+                    const rect = this.canvas.getBoundingClientRect();
+                    const clickX = e.clientX - rect.left;
+                    const screenWidth = rect.width;
+
+                    if (clickX < screenWidth / 2) {
+                        this.changeLane(-1);
+                    } else {
+                        this.changeLane(1);
+                    }
+                });
+            }
+
+            changeLane(direction) {
+                const target = this.currentLane + direction;
+                if (target >= 0 && target < this.lanesCount) {
+                    this.currentLane = target;
+                    sounds.playJump();
+                    // Trigger haptic feedback if available
+                    if (navigator.vibrate) {
+                        navigator.vibrate(10);
+                    }
+                }
+            }
+
+            setupButtons() {
+                // Start Game button
+                document.getElementById('playBtn').addEventListener('click', () => {
+                    sounds.init();
+                    this.startGame();
+                });
+
+                // Flush Toilet sound easter egg button
+                document.getElementById('flushBtn').addEventListener('click', () => {
+                    sounds.playFlush();
+                    // Fun animation trigger
+                    const emoji = document.querySelector('.toilet-emoji');
+                    emoji.style.animation = 'none';
+                    setTimeout(() => {
+                        emoji.style.animation = 'toiletBounce 0.5s ease infinite alternate';
+                    }, 10);
+                    setTimeout(() => {
+                        emoji.style.animation = 'toiletBounce 3s ease-in-out infinite';
+                    }, 1800);
+                });
+
+                // Pause Game Button
+                document.getElementById('pauseBtn').addEventListener('click', () => this.pauseGame());
+                
+                // Mute button
+                const muteBtn = document.getElementById('muteBtn');
+                muteBtn.addEventListener('click', () => {
+                    const isMuted = sounds.toggleMute();
+                    muteBtn.innerText = isMuted ? '🔇' : '🔊';
+                });
+
+                // Pause screen controls
+                document.getElementById('resumeBtn').addEventListener('click', () => this.resumeGame());
+                document.getElementById('restartPauseBtn').addEventListener('click', () => this.startGame());
+                document.getElementById('homePauseBtn').addEventListener('click', () => this.goHome());
+
+                // Game Over screen controls
+                document.getElementById('retryBtn').addEventListener('click', () => this.startGame());
+                document.getElementById('homeBtn').addEventListener('click', () => this.goHome());
+            }
+
+            startGame() {
+                this.score = 0;
+                this.bubblesCollectedThisRun = 0;
+                this.speed = this.baseSpeed;
+                this.gameTime = 0;
+                this.currentLane = 1;
+                this.playerX = this.getLaneX(1);
+                this.targetLaneX = this.playerX;
+                
+                this.obstacles = [];
+                this.collectibles = [];
+                this.particles = [];
+                this.obstacleTimer = 0;
+                this.collectibleTimer = performance.now();
+
+                this.state = 'PLAYING';
+                this.showScreen('hud');
+                
+                // Sound cue
+                sounds.playJump();
+            }
+
+            pauseGame() {
+                if (this.state !== 'PLAYING') return;
+                this.state = 'PAUSED';
+                this.showScreen('pause');
+            }
+
+            resumeGame() {
+                if (this.state !== 'PAUSED') return;
+                this.state = 'PLAYING';
+                this.showScreen('hud');
+                sounds.playJump();
+            }
+
+            goHome() {
+                this.state = 'START';
+                this.resetGameData();
+                this.showScreen('start');
+            }
+
+            gameOver(reason) {
+                this.state = 'GAMEOVER';
+                sounds.playCrash();
+
+                if (navigator.vibrate) {
+                    navigator.vibrate([100, 50, 100]);
+                }
+
+                // Save High Scores & Bubbles
+                const newRecord = this.score > this.highScore;
+                if (newRecord) {
+                    this.highScore = this.score;
+                    localStorage.setItem('flush_rush_highscore', this.highScore);
+                }
+                
+                this.totalBubbles += this.bubblesCollectedThisRun;
+                localStorage.setItem('flush_rush_bubbles', this.totalBubbles);
+
+                // Update UI
+                document.getElementById('gameOverReason').innerText = reason;
+                document.getElementById('finalScoreVal').innerText = this.score;
+                document.getElementById('finalBubblesVal').innerText = this.bubblesCollectedThisRun;
+
+                const badge = document.getElementById('newRecordBadge');
+                if (newRecord) {
+                    badge.classList.remove('hidden');
+                } else {
+                    badge.classList.add('hidden');
+                }
+
+                this.showScreen('gameOver');
+            }
+
+            showScreen(activeKey) {
+                Object.keys(this.screens).forEach(key => {
+                    if (key === activeKey) {
+                        this.screens[key].classList.remove('hidden');
+                    } else {
+                        this.screens[key].classList.add('hidden');
+                    }
+                });
+            }
+
+            // --- GAME LOOP ---
+            loop(currentTime) {
+                const dt = Math.min(50, currentTime - this.lastTime); // Cap dt to prevent huge leaps
+                this.lastTime = currentTime;
+
+                this.update(dt);
+                this.draw();
+
+                requestAnimationFrame((t) => this.loop(t));
+            }
+
+            update(dt) {
+                const viewW = this.getViewportWidth();
+                const viewH = this.getViewportHeight();
+
+                // 1. Update background fluid elements
+                this.bgWaterParticles.forEach(p => {
+                    p.y += p.speed * (this.state === 'PLAYING' ? this.speed * 0.7 : 1);
+                    if (p.y > viewH) {
+                        p.y = -10;
+                        p.x = Math.random() * viewW;
+                    }
+                });
+
+                if (this.state !== 'PLAYING') {
+                    // Passive menu movement of player
+                    const targetX = this.getLaneX(1);
+                    this.playerX += (targetX - this.playerX) * 0.1;
+                    this.playerRotation += 0.01 * dt;
+                    return;
+                }
+
+                // --- GAME PLAYING LOGIC ---
+
+                // Increase difficulty
+                this.gameTime += dt;
+                this.speed = Math.min(this.maxSpeed, this.baseSpeed + (this.gameTime / 15000)); // Speed increases every 15s
+
+                // Score tick based on distance run
+                this.score += Math.round(dt * 0.01 * (this.speed / this.baseSpeed));
+                document.getElementById('scoreVal').innerText = this.score;
+                document.getElementById('bubblesVal').innerText = this.bubblesCollectedThisRun;
+
+                // Player lane movement smoothing (lerp)
+                const targetX = this.getLaneX(this.currentLane);
+                this.playerX += (targetX - this.playerX) * 0.22;
+                this.playerRotation += 0.03 * this.speed * dt;
+
+                // Spawn obstacles and collectibles
+                this.obstacleTimer += dt;
+                this.collectibleTimer += dt;
+
+                const dynamicSpawnRate = Math.max(700, 1600 - (this.speed * 80));
+
+                if (this.obstacleTimer > dynamicSpawnRate) {
+                    this.spawnObstacle();
+                    this.obstacleTimer = 0;
+                }
+
+                if (this.collectibleTimer > 1200 + Math.random() * 1000) {
+                    this.spawnCollectible();
+                    this.collectibleTimer = 0;
+                }
+
+                // Update Obstacles
+                for (let i = this.obstacles.length - 1; i >= 0; i--) {
+                    const obs = this.obstacles[i];
+                    obs.y += this.speed * 0.8 * dt * 0.1;
+
+                    // Collision check
+                    const dist = Math.hypot(this.playerX - obs.x, this.playerY - obs.y);
+                    if (dist < this.playerRadius + obs.radius - 4) {
+                        this.gameOver(obs.failReason);
+                        return;
+                    }
+
+                    // Remove if off screen
+                    if (obs.y > viewH + 50) {
+                        this.obstacles.splice(i, 1);
+                    }
+                }
+
+                // Update Collectibles
+                for (let i = this.collectibles.length - 1; i >= 0; i--) {
+                    const col = this.collectibles[i];
+                    col.y += this.speed * 0.8 * dt * 0.1;
+
+                    // Collision check
+                    const dist = Math.hypot(this.playerX - col.x, this.playerY - col.y);
+                    if (dist < this.playerRadius + col.radius + 5) {
+                        this.collectItem(col);
+                        this.collectibles.splice(i, 1);
+                        continue;
+                    }
+
+                    // Remove if off screen
+                    if (col.y > viewH + 50) {
+                        this.collectibles.splice(i, 1);
+                    }
+                }
+
+                // Update Particles
+                for (let i = this.particles.length - 1; i >= 0; i--) {
+                    const p = this.particles[i];
+                    p.x += p.vx * dt * 0.05;
+                    p.y += p.vy * dt * 0.05;
+                    p.alpha -= 0.02;
+                    if (p.alpha <= 0) {
+                        this.particles.splice(i, 1);
+                    }
+                }
+            }
+
+            spawnObstacle() {
+                const lane = Math.floor(Math.random() * this.lanesCount);
+                const obstacleTypes = [
+                    { emoji: '💩', label: 'monstruo de caca', failReason: '¡Te chocaste con un monstruo de caca!' },
+                    { emoji: '🪠', label: 'desatascador de tuberías', failReason: '¡Te tropezaste con un desatascador!' },
+                    { emoji: '🧼', label: 'jabón resbaladizo', failReason: '¡Te resbalaste en una pastilla de jabón!' },
+                    { emoji: '🧽', label: 'esponja sucia', failReason: '¡Te aplastó una esponja gigante!' }
+                ];
+                
+                const type = obstacleTypes[Math.floor(Math.random() * obstacleTypes.length)];
+                
+                this.obstacles.push({
+                    x: this.getLaneX(lane),
+                    y: -50,
+                    radius: 36, // Much larger radius for visual feedback and collision
+                    emoji: type.emoji,
+                    failReason: type.failReason
+                });
+            }
+
+            spawnCollectible() {
+                const lane = Math.floor(Math.random() * this.lanesCount);
+                
+                // Avoid spawning a collectible directly on top of an obstacle
+                const overlapsObstacle = this.obstacles.some(obs => {
+                    return obs.lane === lane && obs.y < 100;
+                });
+
+                if (overlapsObstacle) return;
+
+                this.collectibles.push({
+                    x: this.getLaneX(lane),
+                    y: -50,
+                    radius: 28, // Larger collectible radius
+                    emoji: '🫧' // Water bubble
+                });
+            }
+
+            collectItem(item) {
+                sounds.playCollect();
+                this.bubblesCollectedThisRun++;
+                this.score += 150; // Bonus points for bubbles!
+
+                // Create colorful splash particles
+                for (let i = 0; i < 12; i++) {
+                    this.particles.push({
+                        x: item.x,
+                        y: item.y,
+                        vx: (Math.random() - 0.5) * 8,
+                        vy: (Math.random() - 0.5) * 8,
+                        color: 'rgba(56, 189, 248, 0.8)',
+                        size: 2 + Math.random() * 4,
+                        alpha: 1
+                    });
+                }
+            }
+
+            draw() {
+                const ctx = this.ctx;
+                const w = this.getViewportWidth();
+                const h = this.getViewportHeight();
+
+                ctx.clearRect(0, 0, w, h);
+
+                // 1. Draw Background Water Flow Particles
+                ctx.fillStyle = 'rgba(56, 189, 248, 0.15)';
+                this.bgWaterParticles.forEach(p => {
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                    ctx.fill();
+                });
+
+                // 2. Draw Pipes (Lanes)
+                for (let i = 0; i < this.lanesCount; i++) {
+                    const pipeX = this.getLaneX(i);
+                    
+                    // Check if player is currently in this lane to draw a glowing pipeline
+                    const isPlayerHere = this.currentLane === i && this.state === 'PLAYING';
+                    
+                    // Neon Pipe Glow
+                    ctx.shadowBlur = isPlayerHere ? 20 : 0;
+                    ctx.shadowColor = 'rgba(0, 240, 255, 0.4)';
+                    
+                    // Outer pipe lines
+                    ctx.strokeStyle = isPlayerHere ? 'rgba(0, 240, 255, 0.4)' : 'rgba(255, 255, 255, 0.05)';
+                    ctx.lineWidth = 4;
+                    ctx.beginPath();
+                    ctx.moveTo(pipeX - this.laneSpacing * 0.35, 0);
+                    ctx.lineTo(pipeX - this.laneSpacing * 0.35, h);
+                    ctx.moveTo(pipeX + this.laneSpacing * 0.35, 0);
+                    ctx.lineTo(pipeX + this.laneSpacing * 0.35, h);
+                    ctx.stroke();
+
+                    // Pipe inner glass shading
+                    const pipeGradient = ctx.createLinearGradient(
+                        pipeX - this.laneSpacing * 0.35, 0,
+                        pipeX + this.laneSpacing * 0.35, 0
+                    );
+                    pipeGradient.addColorStop(0, 'rgba(15, 23, 42, 0.4)');
+                    pipeGradient.addColorStop(0.5, isPlayerHere ? 'rgba(0, 240, 255, 0.08)' : 'rgba(255, 255, 255, 0.01)');
+                    pipeGradient.addColorStop(1, 'rgba(15, 23, 42, 0.4)');
+                    
+                    ctx.fillStyle = pipeGradient;
+                    ctx.fillRect(pipeX - this.laneSpacing * 0.35, 0, this.laneSpacing * 0.7, h);
+                    
+                    // Reset shadows
+                    ctx.shadowBlur = 0;
+                }
+
+                // 3. Draw Collectibles
+                this.collectibles.forEach(col => {
+                    ctx.save();
+                    // Glow effect
+                    ctx.shadowBlur = 15;
+                    ctx.shadowColor = 'rgba(56, 189, 248, 0.6)';
+                    ctx.font = `${col.radius * 2.5}px var(--font-main)`; // Enlarged font factor
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(col.emoji, col.x, col.y);
+                    ctx.restore();
+                });
+
+                // 4. Draw Obstacles
+                this.obstacles.forEach(obs => {
+                    ctx.save();
+                    ctx.shadowBlur = 10;
+                    ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+                    ctx.font = `${obs.radius * 2.5}px var(--font-main)`; // Enlarged font factor
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(obs.emoji, obs.x, obs.y);
+                    ctx.restore();
+                });
+
+                // 5. Draw Particles
+                this.particles.forEach(p => {
+                    ctx.fillStyle = p.color;
+                    ctx.globalAlpha = p.alpha;
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                    ctx.fill();
+                });
+                ctx.globalAlpha = 1.0; // Reset alpha
+
+                // 6. Draw Player (Toilet Paper Roll)
+                ctx.save();
+                ctx.translate(this.playerX, this.playerY);
+                ctx.rotate(this.playerRotation);
+
+                // Draw glowing neon highlight under player
+                if (this.state === 'PLAYING') {
+                    ctx.shadowBlur = 25;
+                    ctx.shadowColor = 'rgba(255, 255, 255, 0.8)';
+                }
+
+                // Unrolling toilet paper tail (drawn relative to rotated player space)
+                ctx.fillStyle = '#ffffff';
+                ctx.beginPath();
+                ctx.moveTo(-15, 0);
+                ctx.bezierCurveTo(
+                    -25, 20,
+                    -20, 35,
+                    -15, 45
+                );
+                ctx.lineTo(-5, 45);
+                ctx.bezierCurveTo(
+                    -8, 35,
+                    -15, 20,
+                    -5, 0
+                );
+                ctx.closePath();
+                ctx.fill();
+
+                // Main cylindrical roll side-view (a white circle)
+                ctx.fillStyle = '#f8fafc';
+                ctx.strokeStyle = '#e2e8f0';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(0, 0, this.playerRadius, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+
+                // Paper concentric circles
+                ctx.strokeStyle = 'rgba(148, 163, 184, 0.3)';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.arc(0, 0, this.playerRadius * 0.7, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.arc(0, 0, this.playerRadius * 0.5, 0, Math.PI * 2);
+                ctx.stroke();
+
+                // Inside cardboard tube (brown circle center)
+                ctx.fillStyle = '#b45309'; // Warm brown cardboard color
+                ctx.strokeStyle = '#78350f';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(0, 0, this.playerRadius * 0.3, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+
+                // Dark hole inside the tube
+                ctx.fillStyle = '#070a13';
+                ctx.beginPath();
+                ctx.arc(0, 0, this.playerRadius * 0.15, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.restore();
+            }
+        }
+
+        // Instantiate game on window load
+        window.addEventListener('load', () => {
+            new Game();
+        });
+    </script>
+</body>
+</html>
